@@ -9,6 +9,20 @@
 \ 
 \ \
 
+: routerbase ( -- i) \ push the base address of the LED array
+    $A0
+;
+
+( i --) \ push the instruction to the  destination 
+: router!
+    routerbase io!
+;
+
+( -- i)
+: router@
+    routerbase io@
+;
+
 : ledsbase ( -- c) \ push the base address of the LED array
     $40
 ;
