@@ -76,6 +76,47 @@ class J1Nexys4X(j1Cfg    : J1Config,
     // Create a new CPU core
     val cpu = new J1(j1Cfg)
 
+    var routerArray = new Array[Router](9)
+    var routerBridgeArrray = new Array[Area](9)
+
+    for (i <- 0 to 8){
+
+      routerArray(i)        = new Router(j1Cfg, i)
+    }
+
+    val routerBridge = routerArray(0).driveFrom(peripheralBusCtrl, baseAddress = 0xA0)
+
+
+    for (i <- 0 to 8){
+      // West Configuration
+      if (i % 3 >= 2) {
+        routerArray(i-2).io.inEast := routerArray(i).io.outWest
+      } else {
+        routerArray(i+1).io.inEast := routerArray(i).io.outWest
+      }
+
+      // East Configuration
+      if (i % 3 <= 0) {
+        routerArray(i+2).io.inWest := routerArray(i).io.outEast
+      } else {
+        routerArray(i-1).io.inWest := routerArray(i).io.outEast
+      }
+
+      // North Configuration
+      if (i / 3 <= 0) {
+        routerArray(i+6).io.inSouth := routerArray(i).io.outNorth
+      } else {
+        routerArray(i-3).io.inSouth := routerArray(i).io.outNorth
+      }
+
+      // South Configuration
+      if (i / 3 >= 2) {
+        routerArray(i-6).io.inNorth := routerArray(i).io.outSouth
+      } else {
+        routerArray(i+3).io.inNorth := routerArray(i).io.outSouth
+      }
+    }
+
     // Create a delayed version of the cpu core interface to IO-peripherals
     val peripheralBus     = cpu.bus.cpuBus.delayIt(boardCfg.ioWaitStates)
     val peripheralBusCtrl = J1BusSlaveFactory(peripheralBus)
