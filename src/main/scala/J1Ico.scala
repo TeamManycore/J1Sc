@@ -63,13 +63,63 @@ class J1Ico(j1Cfg    : J1Config,
 
   // Generate the application specific clocking area
   val coreArea = new ClockingArea(clkCtrl.coreClockDomain) {
+    //var cpuArray = new Array[J1](9)
+    var cpu = new J1(j1Cfg)
+    //var peripheralBusArray  = new Array[J1Bus](9)
+    //var peripheralBusCtrlArray = new Array[J1BusSlaveFactory](9)
+    var routerArray = new Array[Router](9)
+    var routerBridgeArrray = new Array[Area](9)
 
-    // Create a new CPU core
-    val cpu = new J1(j1Cfg)
-
-    // Create a delayed version of the cpu core interface to IO-peripherals
     val peripheralBus     = cpu.bus.cpuBus.delayIt(boardCfg.ioWaitStates)
     val peripheralBusCtrl = J1BusSlaveFactory(peripheralBus)
+
+    for (i <- 0 to 8){
+      //cpuArray(i) = new J1(j1Cfg)
+
+      //peripheralBusArray(i)     = cpuArray(i).bus.cpuBus.delayIt(boardCfg.ioWaitStates)
+      //peripheralBusCtrlArray(i) = J1BusSlaveFactory(peripheralBusArray(i))
+
+      routerArray(i)        = new Router(j1Cfg, i)
+    }
+
+
+    //peripheralBusArray(0)     = cpu.bus.cpuBus.delayIt(boardCfg.ioWaitStates)
+    //peripheralBusCtrlArray(0) = J1BusSlaveFactory(peripheralBusArray(0))
+    //val router = new Router(j1Cfg, 0)
+    val routerBridge = routerArray(0).driveFrom(peripheralBusCtrl, baseAddress = 0xA0)
+
+    //routerBridgeArrray(0) = routerArray(0).driveFrom(peripheralBusCtrl, baseAddress =0xA0)
+
+
+    for (i <- 0 to 8){
+      // West Configuration
+      if (i % 3 >= 2) {
+        routerArray(i-2).io.inEast := routerArray(i).io.outWest
+      } else {
+        routerArray(i+1).io.inEast := routerArray(i).io.outWest
+      }
+
+      // East Configuration
+      if (i % 3 <= 0) {
+        routerArray(i+2).io.inWest := routerArray(i).io.outEast
+      } else {
+        routerArray(i-1).io.inWest := routerArray(i).io.outEast
+      }
+
+      // North Configuration
+      if (i / 3 <= 0) {
+        routerArray(i+6).io.inSouth := routerArray(i).io.outNorth
+      } else {
+        routerArray(i-3).io.inSouth := routerArray(i).io.outNorth
+      }
+
+      // South Configuration
+      if (i / 3 >= 2) {
+        routerArray(i-6).io.inNorth := routerArray(i).io.outSouth
+      } else {
+        routerArray(i+3).io.inNorth := routerArray(i).io.outSouth
+      }
+    }
 
     // Create a LED array at base address 0x40
     val ledArray  = new LEDArray(j1Cfg, boardCfg.ledBankConfig)
