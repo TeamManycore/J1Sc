@@ -35,7 +35,10 @@ class J1(cfg : J1Config) extends Component {
   val mainMem = new MainMemory(cfg)
 
   // Instruction port (read only)
+  // Get the address of the next instruction from the core
   mainMem.internal.readDataAdr <> coreJ1CPU.internal.nextInstrAdr
+
+  // Read the instruction from the memory and pass it to the core
   coreJ1CPU.internal.memInstr <> mainMem.internal.readData
 
   // Connect the CPU core with the main memory (convert the byte address to a cell address)

@@ -21,7 +21,7 @@ case class J1Bus(cfg : J1Config) extends Bundle with IMasterSlave {
   val enable    = Bool // Bus can be used when 'enable' is high
   val writeMode = Bool // High to write data, low to read data
   val address   = UInt(adrWidth bits) // Address (byte-aligned)
-  val writeData = Bits(dataWidth bits)
+  val writeData = Bits(cfg.wrapperSize bits)
   val readData  = Bits(dataWidth bits)
 
   // Created a copy of the current bus which signals are delayed by 'delayCnt' ticks

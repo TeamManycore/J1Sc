@@ -22,7 +22,7 @@ class J1Core(cfg : J1Config) extends Component {
     val ioWriteMode  = out Bool
     val ioReadMode   = out Bool
     val extAdr       = out UInt(cfg.wordSize bits)
-    val extToWrite   = out Bits(cfg.wordSize bits)
+    val extToWrite   = out Bits(cfg.wrapperSize bits)
     val toRead       = in  Bits(cfg.wordSize bits)
 
     // Signal to stall the CPU
@@ -34,20 +34,34 @@ class J1Core(cfg : J1Config) extends Component {
 
     // I/O port for instructions
     val nextInstrAdr = out (UInt(cfg.adrWidth bits))
-    val memInstr     = in (Bits(cfg.wordSize bits))
+    val memInstr     = in (Bits(cfg.wrapperSize bits))
 
   }.setName("")
+
+  // Flag to decide whether to read the upper ot lower bits of the instruction
+  // True: read the 16 highest bits; False: read the 16 lower bits
+  val instructionToggle = RegInit(True)
+  val instr16 = Bits(cfg.wordSize bits)
 
   // Synchron reset
   val clrActive = ClockDomain.current.isResetActive
 
-  // Program counter (note that the MSB is used to control dstack and rstack, hence make is one bit larger)
+  // Program counter (note that the MSB is used to control dstack and rstack, hence make it one bit larger)
   val pcN = UInt(cfg.adrWidth + 1 bits)
   val pc = RegNextWhen(pcN, !(clrActive || internal.stall)) init(cfg.startAddress)
   val pcPlusOne = pc + 1
 
+
+  // TODO: Maybe switch?
+  // Get the higher or lower 16 bits depending on instructionToggles state
+  when (instructionToggle) {
+    instr16 := B(internal.memInstr(31 downto 16))
+  }.otherwise {
+    instr16 := B(internal.memInstr(15 downto 0))
+  }
+
   // Instruction to be executed (insert a call-instruction for handling an interrupt)
-  val instr = Mux(internal.irq, B"b010" ## internal.intVec.resize(cfg.wordSize - 3), internal.memInstr)
+  val instr = Mux(internal.irq, B"b010" ## internal.intVec.resize(cfg.wordSize - 3), instr16)
 
   // Data stack pointer (set to first entry, which can be abitrary)
   val dStackPtrN = UInt(cfg.dataStackIdxWidth bits)
@@ -158,7 +172,9 @@ class J1Core(cfg : J1Config) extends Component {
   internal.ioWriteMode := !clrActive && isALU && funcWriteIO
   internal.ioReadMode := !clrActive && isALU && funcReadIO
   internal.extAdr := dtosN.asUInt
-  internal.extToWrite := dnos
+
+  // Pad the (16b) data for the (32b) memory
+  internal.extToWrite := dnos ## B"hffff"
 
   // Increment for data stack pointer
   val dStackPtrInc = SInt(cfg.dataStackIdxWidth bits)
@@ -222,6 +238,16 @@ class J1Core(cfg : J1Config) extends Component {
     default {pcN := pcPlusOne}
 
   }
+
+  // Toggle the flag
+  when (instructionToggle) {
+    instructionToggle := False
+  }.otherwise {
+    instructionToggle := True
+  }
+
+  // Default value to prevent latch
+  //internal.nextInstrAdr := 42
 
   // Use next PC as address of instruction memory (do not use the MSB)
   internal.nextInstrAdr := pcN(pcN.high - 1 downto 0)

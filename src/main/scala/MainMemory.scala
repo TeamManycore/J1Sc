@@ -17,7 +17,7 @@ import spinal.core._
 class MainMemory(cfg : J1Config) extends Component {
 
   // Check the generic parameters
-  assert(cfg.wordSize >= cfg.adrWidth, message = "ERROR: The width of addresses are too large")
+  assert(cfg.wrapperSize >= cfg.adrWidth, message = "ERROR: The width of addresses are too large")
   assert(isPow2(cfg.numOfRAMs), message = "ERROR: Number of RAMs has to be a power of 2")
   assert(cfg.numOfRAMs >= 2, message = "ERROR: Number of RAMs has to be at least 2")
 
@@ -26,12 +26,12 @@ class MainMemory(cfg : J1Config) extends Component {
 
     // Instruction port (read only)
     val readDataAdr = in UInt (cfg.adrWidth bits)
-    val readData    = out Bits (cfg.wordSize bits)
+    val readData    = out Bits (cfg.wrapperSize bits)
 
     // Memory port (write only)
     val writeEnable  = in Bool
     val writeDataAdr = in UInt (cfg.adrWidth bits)
-    val writeData    = in Bits (cfg.wordSize bits)
+    val writeData    = in Bits (cfg.wrapperSize bits)
 
   }.setName("")
 
@@ -58,12 +58,12 @@ class MainMemory(cfg : J1Config) extends Component {
             ")")
 
     // Create the ith RAM and fill it with the appropriate part of the bootcode
-    Mem(Bits(cfg.wordSize bits), cfg.bootCode().slice(i * numOfCells, (i + 1) * numOfCells))
+    Mem(Bits(cfg.wrapperSize bits), cfg.bootCode().slice(i * numOfCells, (i + 1) * numOfCells))
 
   }
 
   // Convert the list to a spinal vector
-  val rPortsVec = Vec(for((ram,i) <- ramList.zipWithIndex) yield {
+  val rPortsVec = Vec(for((ram, i) <- ramList.zipWithIndex) yield {
 
     // Create the write port of the ith RAM
     ram.write(enable  = internal.writeEnable &&

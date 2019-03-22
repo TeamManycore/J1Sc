@@ -50,7 +50,8 @@ object TimerConfig {
 }
 
 // The configuration of a J1-CPU
-case class J1Config (wordSize : Int,
+case class J1Config (wrapperSize : Int,
+                     wordSize : Int,
                      dataStackIdxWidth : Int,
                      returnStackIdxWidth : Int,
                      timerConfig : TimerConfig,
@@ -213,19 +214,22 @@ object J1Config {
   def binToBits(s : String, w : Int) = {B(s.toList.map("01".indexOf(_)).reduceLeft(_ * 2 + _), w bits)}
 
   // Convert a hex-string to an integer
-  def hexToBits(s : String, w : Int) = {B(s.toList.map("0123456789ABCDEF".indexOf(_)).reduceLeft(_ * 16 + _), w bits)}
+  def hexToBits(s : String, w : Int) = {
+    // Map to BigInt to prevent overflows
+    B(s.toList.map("0123456789ABCDEF".indexOf(_)).map(BigInt(_)).reduceLeft(_ * 16 + _), w bits)
+  }
 
   // Provide the SwapForth base system
   def forthBase(w : Int) = {
 
     // Read all lines of the hex dump into a list of strings
-    val lines = Source.fromFile("toolchain/forth/build/nuc.binary").getLines().toList.map((s : String) => s.toUpperCase)
+    val lines = Source.fromFile("toolchain/forth32/build/nuc.hex").getLines().toList.map((s : String) => s.toUpperCase)
 
     // Only use valid lines (so anything not matching a number is a comment)
     val filteredLines = lines.filter((s : String) => s.matches("[0-9A-F]+"))
 
     // Convert it to a list of Bits of width w
-    filteredLines.map((s : String) => binToBits(s, w))
+    filteredLines.map((s : String) => hexToBits(s, w))
 
   }
 
@@ -233,6 +237,7 @@ object J1Config {
   def default = {
 
     // Default parameters for a J1 CPU
+    def wrapperSize            = 32
     def wordSize               = 16
     def dataStackIdxWidth      =  8
     def returnStackIdxWidth    =  4
@@ -254,7 +259,8 @@ object J1Config {
                      List.fill((1 << adrWidth) - endlessLoop().length)(B(0, wordSize bits))
 
     // Set the default configuration values
-    val config = J1Config(wordSize            = wordSize,
+    val config = J1Config(wrapperSize         = wrapperSize,
+                          wordSize            = wordSize,
                           dataStackIdxWidth   = dataStackIdxWidth,
                           returnStackIdxWidth = returnStackIdxWidth,
                           timerConfig         = timerConfig,
@@ -273,6 +279,7 @@ object J1Config {
   def debug = {
 
     // Parameters of a debug configuration
+    def wrapperSize            = 32
     def wordSize               = 16
     def dataStackIdxWidth      =  5
     def returnStackIdxWidth    =  4
@@ -297,7 +304,8 @@ object J1Config {
                      List(instrJMP60)
 
     // Set the configuration values for ISA debugging
-    val config = J1Config(wordSize            = wordSize,
+    val config = J1Config(wrapperSize         = wrapperSize,
+                          wordSize            = wordSize,
                           dataStackIdxWidth   = dataStackIdxWidth,
                           returnStackIdxWidth = returnStackIdxWidth,
                           timerConfig         = timerConfig,
@@ -315,6 +323,7 @@ object J1Config {
   // Provide a debug configuration of memory mapped I/O instructions
   def debugIO = {
 
+    def wrapperSize            = 32
     def wordSize               = 16
     def dataStackIdxWidth      =  5
     def returnStackIdxWidth    =  4
@@ -335,7 +344,8 @@ object J1Config {
     def bootCode() = ioTest() ++ List.fill((1 << adrWidth) - ioTest.length)(B(0, wordSize bits))
 
     // Set the configuration values for debugging I/O instructions
-    val config = J1Config(wordSize            = wordSize,
+    val config = J1Config(wrapperSize         = wrapperSize,
+                          wordSize            = wordSize,
                           dataStackIdxWidth   = dataStackIdxWidth,
                           returnStackIdxWidth = returnStackIdxWidth,
                           timerConfig         = timerConfig,
@@ -353,6 +363,7 @@ object J1Config {
   // Provide a debug configuration for the interrupt controller
   def debugIRQ = {
 
+    def wrapperSize            = 32
     def wordSize               = 16
     def dataStackIdxWidth      =  5
     def returnStackIdxWidth    =  4
@@ -377,7 +388,8 @@ object J1Config {
                      List.fill(1)(instrRTS)
 
     // Set the default configuration values
-    val config = J1Config(wordSize            = wordSize,
+    val config = J1Config(wrapperSize         = wrapperSize,
+                          wordSize            = wordSize,
                           dataStackIdxWidth   = dataStackIdxWidth,
                           returnStackIdxWidth = returnStackIdxWidth,
                           timerConfig         = timerConfig,
@@ -395,6 +407,7 @@ object J1Config {
   // Provide a configuration for SwapForth
   def forth = {
 
+    def wrapperSize            = 32
     def wordSize               = 16
     def dataStackIdxWidth      =  5
     def returnStackIdxWidth    =  5
@@ -412,13 +425,14 @@ object J1Config {
     val irqConfig = IRQCtrlConfig(noOfInterrupts, noOfInternalInterrupts, irqLatency)
 
     // Take the base system and cut the interrupt vectors at the end
-    def baseSystem = forthBase(wordSize).take((1 << adrWidth) - noOfInterrupts)
+    def baseSystem = forthBase(wrapperSize).take((1 << adrWidth) - noOfInterrupts)
 
     // Generate the complete memory layout of the system (using invalid interrupt vectors)
     def bootCode() = baseSystem ++ List.fill((1 << adrWidth) - baseSystem.length)(B(0, wordSize bits))
 
     // Set the configuration values for the forth system
-    val config = J1Config(wordSize            = wordSize,
+    val config = J1Config(wrapperSize         = wrapperSize,
+                          wordSize            = wordSize,
                           dataStackIdxWidth   = dataStackIdxWidth,
                           returnStackIdxWidth = returnStackIdxWidth,
                           timerConfig         = timerConfig,

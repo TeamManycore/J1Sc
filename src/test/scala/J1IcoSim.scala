@@ -120,7 +120,7 @@ object J1IcoSim {
 
     SimConfig.workspacePath("gen/sim")
              .allOptimisation
-             //.withWave
+             .withWave
              .compile(new J1Ico(j1Cfg, boardCfg)).doSim{dut =>
 
       // Flag the indicates that a reset should be performed
